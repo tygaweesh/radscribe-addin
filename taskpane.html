@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RadScribe AI</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+    :root {
+      --bg:        #0a0e14;
+      --surface:   #111720;
+      --surface2:  #1a2230;
+      --border:    #1e2d3d;
+      --accent:    #00d4ff;
+      --accent2:   #0094b3;
+      --warn:      #ff6b35;
+      --ok:        #00e5a0;
+      --text:      #d4e2f0;
+      --muted:     #5a7a99;
+      --mono:      'DM Mono', monospace;
+      --display:   'Syne', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px 10px;
+      flex-shrink: 0;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .logo-mark {
+      width: 24px; height: 24px;
+      background: var(--accent);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      flex-shrink: 0;
+    }
+    .logo-text {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: -0.3px;
+      color: #fff;
+    }
+    .logo-text span { color: var(--accent); }
+    .version-badge {
+      margin-left: auto;
+      font-size: 9px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 20px;
+    }
+
+    /* Mode selector tabs */
+    .mode-tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .mode-tab {
+      flex: 1;
+      padding: 5px 0;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .mode-tab.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: rgba(0,212,255,0.06);
+    }
+
+    /* ── Scrollable Body ── */
+    .body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .body::-webkit-scrollbar { width: 4px; }
+    .body::-webkit-scrollbar-track { background: transparent; }
+    .body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Section labels ── */
+    .section-label {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* ── Modality selector ── */
+    .modality-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+    .mod-btn {
+      padding: 7px 4px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-align: center;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 5px;
+      transition: all 0.15s;
+    }
+    .mod-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .mod-btn.selected {
+      background: rgba(0,212,255,0.1);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Organ / Region selector ── */
+    .organ-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .organ-chip {
+      padding: 4px 9px;
+      font-family: var(--mono);
+      font-size: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 20px;
+      transition: all 0.12s;
+    }
+    .organ-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .organ-chip.selected {
+      background: rgba(0,212,255,0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Microphone button ── */
+    .mic-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 0 8px;
+    }
+    .mic-outer {
+      position: relative;
+      width: 64px; height: 64px;
+      cursor: pointer;
+    }
+    .mic-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      opacity: 0.3;
+      transition: all 0.2s;
+    }
+    .mic-outer.recording .mic-ring {
+      opacity: 1;
+      animation: pulse-ring 1s ease-out infinite;
+    }
+    @keyframes pulse-ring {
+      0%   { transform: scale(1);   opacity: 1; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    .mic-btn {
+      position: absolute;
+      inset: 6px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .mic-outer.recording .mic-btn {
+      background: rgba(0,212,255,0.15);
+      border-color: var(--accent);
+    }
+    .mic-icon { width: 22px; height: 22px; }
+    .mic-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+    .mic-outer.recording + .mic-label { color: var(--accent); }
+
+    /* ── Transcript textarea ── */
+    .transcript-wrap { position: relative; }
+    .transcript {
+      width: 100%;
+      min-height: 80px;
+      max-height: 120px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.6;
+      padding: 10px;
+      border-radius: 6px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .transcript:focus { border-color: var(--accent2); }
+    .transcript::placeholder { color: var(--muted); }
+
+    /* ── Action button ── */
+    .action-btn {
+      width: 100%;
+      padding: 11px;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .action-btn:hover { background: #33ddff; }
+    .action-btn:disabled {
+      background: var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+    .action-btn.processing {
+      background: var(--surface2);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      cursor: wait;
+    }
+
+    /* ── Status / output area ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 5px;
+      font-size: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--muted);
+    }
+    .status-dot.ok  { background: var(--ok); }
+    .status-dot.err { background: var(--warn); }
+    .status-dot.busy { 
+      background: var(--accent);
+      animation: blink 0.8s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    .status-text { color: var(--muted); flex: 1; }
+
+    /* ── Mapped fields preview ── */
+    .fields-preview {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .fields-header {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .field-row {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      border-bottom: 1px solid rgba(30,45,61,0.6);
+    }
+    .field-row:last-child { border-bottom: none; }
+    .field-key {
+      padding: 6px 10px;
+      color: var(--accent);
+      font-size: 10px;
+      border-right: 1px solid var(--border);
+      background: rgba(0,212,255,0.03);
+    }
+    .field-val {
+      padding: 6px 10px;
+      color: var(--text);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+    .field-val.impression {
+      color: #fff;
+      font-weight: 500;
+    }
+
+    /* ── Conflicts panel ── */
+    .conflicts {
+      background: rgba(255,107,53,0.06);
+      border: 1px solid rgba(255,107,53,0.3);
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .conflict-title {
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--warn);
+      margin-bottom: 5px;
+    }
+    .conflict-item {
+      font-size: 10px;
+      color: rgba(255,107,53,0.85);
+      line-height: 1.5;
+      padding: 2px 0;
+    }
+    .conflict-item::before { content: "⚠ "; }
+
+    /* ── Insert button ── */
+    .insert-btn {
+      width: 100%;
+      padding: 10px;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      background: transparent;
+      color: var(--ok);
+      border: 1px solid var(--ok);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .insert-btn:hover {
+      background: rgba(0,229,160,0.1);
+    }
+
+    /* ── Template panel ── */
+    .template-panel { display: flex; flex-direction: column; gap: 10px; }
+    .template-select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 8px 10px;
+      border-radius: 5px;
+      outline: none;
+      cursor: pointer;
+    }
+    .template-select:focus { border-color: var(--accent2); }
+    .template-textarea {
+      width: 100%;
+      height: 200px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 1.7;
+      padding: 10px;
+      border-radius: 5px;
+      resize: vertical;
+      outline: none;
+    }
+    .template-textarea:focus { border-color: var(--accent2); }
+    .save-tpl-btn {
+      padding: 8px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      cursor: pointer;
+      border-radius: 5px;
+      transition: all 0.15s;
+    }
+    .save-tpl-btn:hover { border-color: var(--accent); }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(0,212,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* hide inactive panels */
+    .panel { display: none; }
+    .panel.active { display: flex; flex-direction: column; gap: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="header">
+  <div class="header-top">
+    <div class="logo-mark"></div>
+    <div class="logo-text">Rad<span>Scribe</span></div>
+    <div class="version-badge">v1.0 · Expert-i</div>
+  </div>
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="switchTab('dictate')">Dictate</button>
+    <button class="mode-tab" onclick="switchTab('templates')">Templates</button>
+    <button class="mode-tab" onclick="switchTab('settings')">Settings</button>
+  </div>
+</div>
+
+<!-- ── BODY ── -->
+<div class="body">
+
+  <!-- DICTATE PANEL -->
+  <div id="panel-dictate" class="panel active">
+
+    <!-- Modality -->
+    <div>
+      <div class="section-label">Modality</div>
+      <div class="modality-grid">
+        <button class="mod-btn" onclick="selectModality(this,'CT')">CT</button>
+        <button class="mod-btn" onclick="selectModality(this,'MRI')">MRI</button>
+        <button class="mod-btn" onclick="selectModality(this,'XR')">X-Ray</button>
+        <button class="mod-btn" onclick="selectModality(this,'US')">Ultrasound</button>
+        <button class="mod-btn" onclick="selectModality(this,'NM')">Nuclear Med</button>
+        <button class="mod-btn" onclick="selectModality(this,'FLUORO')">Fluoro</button>
+      </div>
+    </div>
+
+    <!-- Region -->
+    <div>
+      <div class="section-label">Region / Focus</div>
+      <div class="organ-wrap" id="organ-wrap"></div>
+    </div>
+
+    <!-- Mic -->
+    <div class="mic-zone">
+      <div class="mic-outer" id="mic-outer" onclick="toggleRecording()">
+        <div class="mic-ring"></div>
+        <div class="mic-btn">
+          <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="9" y="2" width="6" height="12" rx="3" stroke="var(--accent)"/>
+            <path d="M5 10c0 3.866 3.134 7 7 7s7-3.134 7-7" stroke="var(--accent)"/>
+            <line x1="12" y1="17" x2="12" y2="22" stroke="var(--accent)"/>
+            <line x1="9" y1="22" x2="15" y2="22" stroke="var(--accent)"/>
+          </svg>
+        </div>
+      </div>
+      <div class="mic-label" id="mic-label">Tap to dictate findings</div>
+    </div>
+
+    <!-- Transcript -->
+    <div>
+      <div class="section-label">Dictation / Edit</div>
+      <div class="transcript-wrap">
+        <textarea class="transcript" id="transcript"
+          placeholder="Speak or type findings here...&#10;&#10;Example: CT abdomen — liver is homogeneous, no focal lesions. Spleen mildly enlarged at 14cm. Pancreas normal. Right kidney shows a 12mm simple cyst. No free fluid."></textarea>
+      </div>
+    </div>
+
+    <!-- Process button -->
+    <button class="action-btn" id="process-btn" onclick="processFindings()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+      </svg>
+      Map Findings to Report
+    </button>
+
+    <!-- Status -->
+    <div class="status-bar" id="status-bar">
+      <div class="status-dot" id="status-dot"></div>
+      <div class="status-text" id="status-text">Select modality and region, then dictate.</div>
+    </div>
+
+    <!-- Mapped fields (hidden until result) -->
+    <div id="result-zone" style="display:none; flex-direction:column; gap:10px;">
+      
+      <!-- Conflicts -->
+      <div id="conflicts-zone" class="conflicts" style="display:none;">
+        <div class="conflict-title">Resolved Contradictions</div>
+        <div id="conflicts-list"></div>
+      </div>
+
+      <!-- Field map preview -->
+      <div class="fields-preview">
+        <div class="fields-header">
+          <span>Structured Report Fields</span>
+          <span id="field-count" style="color:var(--accent)"></span>
+        </div>
+        <div id="fields-body"></div>
+      </div>
+
+      <!-- Insert into doc -->
+      <button class="insert-btn" onclick="insertIntoDocument()">
+        ↳ Insert into Word Document
+      </button>
+
+    </div>
+  </div>
+
+  <!-- TEMPLATES PANEL -->
+  <div id="panel-templates" class="panel">
+    <div class="template-panel">
+      <div>
+        <div class="section-label">Load Template</div>
+        <select class="template-select" id="template-select" onchange="loadTemplate(this.value)">
+          <option value="">— Select template —</option>
+          <option value="ct_abdomen">CT Abdomen & Pelvis</option>
+          <option value="ct_chest">CT Chest</option>
+          <option value="ct_brain">CT Brain</option>
+          <option value="mri_brain">MRI Brain</option>
+          <option value="mri_spine">MRI Spine</option>
+          <option value="mri_msk">MRI MSK</option>
+          <option value="us_abdomen">US Abdomen</option>
+          <option value="xr_chest">XR Chest</option>
+          <option value="custom">Custom (editable)</option>
+        </select>
+      </div>
+      <div>
+        <div class="section-label">Template Structure (JSON)</div>
+        <textarea class="template-textarea" id="template-editor"
+          placeholder='{"sections": ["Clinical History", "Technique", "Findings", "Impression"]}'></textarea>
+      </div>
+      <button class="save-tpl-btn" onclick="saveCustomTemplate()">Save as Custom Template</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div id="panel-settings" class="panel">
+    <div>
+      <div class="section-label">API Key (Anthropic)</div>
+      <input type="password" id="api-key-input"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;border-radius:5px;outline:none;"
+        placeholder="sk-ant-..." oninput="saveApiKey(this.value)"/>
+      <div style="font-size:9px;color:var(--muted);margin-top:5px;">Stored locally in browser. Never transmitted except to api.anthropic.com</div>
+    </div>
+    <div>
+      <div class="section-label">Radiologist Name</div>
+      <input type="text" id="rad-name"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;border-radius:5px;outline:none;"
+        placeholder="Dr. ..." oninput="saveSetting('radName', this.value)"/>
+    </div>
+    <div>
+      <div class="section-label">Institution</div>
+      <input type="text" id="institution"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;border-radius:5px;outline:none;"
+        placeholder="OmniRad / Expert-i" oninput="saveSetting('institution', this.value)"/>
+    </div>
+    <div>
+      <div class="section-label">Report Language</div>
+      <select style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;border-radius:5px;outline:none;cursor:pointer;"
+        onchange="saveSetting('language', this.value)">
+        <option value="en">English</option>
+        <option value="ar">Arabic</option>
+      </select>
+    </div>
+    <div style="padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">
+      <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">About</div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.7;">
+        RadScribe AI v1.0<br>
+        Built for Expert-i Teleradiology<br>
+        Powered by Claude (Anthropic)<br>
+        © 2026 Expert-i
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let selectedModality = '';
+let selectedOrgans   = [];
+let isRecording      = false;
+let recognition      = null;
+let lastResult       = null;
+
+const ORGANS = {
+  CT:     ['Brain','Chest','Abdomen','Pelvis','Spine','Neck','Extremities'],
+  MRI:    ['Brain','Spine','MSK','Abdomen','Pelvis','Breast','Heart','Neck'],
+  XR:     ['Chest','Abdomen','Spine','Extremities','Pelvis'],
+  US:     ['Abdomen','Pelvis','Thyroid','Breast','Neck','Vascular','MSK'],
+  NM:     ['Bone Scan','Thyroid','Renal','Cardiac','Lung','SPECT'],
+  FLUORO: ['GI Upper','GI Lower','Biliary','Urinary','Vascular'],
+};
+
+const TEMPLATES = {
+  ct_abdomen: {
+    sections: ['Clinical History','Technique','Liver','Gallbladder & Bile Ducts','Pancreas',
+      'Spleen','Kidneys','Adrenal Glands','Bowel','Lymph Nodes','Vasculature',
+      'Bones & Soft Tissue','Impression']
+  },
+  ct_chest: {
+    sections: ['Clinical History','Technique','Lungs & Airways','Pleura','Mediastinum',
+      'Heart & Pericardium','Chest Wall','Upper Abdomen','Bones','Impression']
+  },
+  ct_brain: {
+    sections: ['Clinical History','Technique','Brain Parenchyma','Ventricles',
+      'Sulci & Cisterns','Midline Shift','Skull & Scalp','Impression']
+  },
+  mri_brain: {
+    sections: ['Clinical History','Technique','Sequences','Brain Parenchyma',
+      'White Matter','Ventricles','Posterior Fossa','Vascular Flow Voids',
+      'Skull Base','Impression']
+  },
+  mri_spine: {
+    sections: ['Clinical History','Technique','Vertebral Alignment','Vertebral Bodies',
+      'Intervertebral Discs','Spinal Canal','Cord / Conus','Neural Foramina',
+      'Paraspinal Tissues','Impression']
+  },
+  mri_msk: {
+    sections: ['Clinical History','Technique','Bones','Articular Cartilage',
+      'Ligaments','Tendons','Menisci / Labrum','Bursa / Fluid','Impression']
+  },
+  us_abdomen: {
+    sections: ['Clinical History','Liver','Gallbladder','Common Bile Duct',
+      'Pancreas','Spleen','Kidneys','Aorta','Free Fluid','Impression']
+  },
+  xr_chest: {
+    sections: ['Clinical History','Technique','Lungs','Pleura','Heart Size',
+      'Mediastinum','Bones','Soft Tissues','Impression']
+  },
+};
+
+// ══════════════════════════════════════════════
+//  OFFICE INIT
+// ══════════════════════════════════════════════
+Office.onReady(function(info) {
+  loadSettings();
+});
+
+function loadSettings() {
+  try {
+    const key  = localStorage.getItem('radscribe_apikey') || '';
+    const name = localStorage.getItem('radscribe_radName') || '';
+    const inst = localStorage.getItem('radscribe_institution') || '';
+    if (key)  document.getElementById('api-key-input').value = key;
+    if (name) document.getElementById('rad-name').value = name;
+    if (inst) document.getElementById('institution').value = inst;
+  } catch(e) {}
+}
+
+function saveApiKey(val) {
+  try { localStorage.setItem('radscribe_apikey', val); } catch(e) {}
+}
+function saveSetting(key, val) {
+  try { localStorage.setItem('radscribe_' + key, val); } catch(e) {}
+}
+
+// ══════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ══════════════════════════════════════════════
+//  MODALITY + ORGAN
+// ══════════════════════════════════════════════
+function selectModality(btn, mod) {
+  document.querySelectorAll('.mod-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedModality = mod;
+  selectedOrgans   = [];
+  renderOrgans(mod);
+  setStatus('ready', 'Select region, then dictate findings.');
+}
+
+function renderOrgans(mod) {
+  const wrap = document.getElementById('organ-wrap');
+  wrap.innerHTML = '';
+  (ORGANS[mod] || []).forEach(o => {
+    const c = document.createElement('button');
+    c.className = 'organ-chip';
+    c.textContent = o;
+    c.onclick = () => toggleOrgan(c, o);
+    wrap.appendChild(c);
+  });
+}
+
+function toggleOrgan(chip, organ) {
+  const idx = selectedOrgans.indexOf(organ);
+  if (idx === -1) {
+    selectedOrgans.push(organ);
+    chip.classList.add('selected');
+  } else {
+    selectedOrgans.splice(idx, 1);
+    chip.classList.remove('selected');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  VOICE RECORDING
+// ══════════════════════════════════════════════
+function toggleRecording() {
+  if (!isRecording) startRecording(); else stopRecording();
+}
+
+function startRecording() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    setStatus('err', 'Speech API not supported. Please type your findings.');
+    return;
+  }
+  recognition = new SpeechRec();
+  recognition.continuous    = true;
+  recognition.interimResults = true;
+  recognition.lang           = 'en-US';
+
+  const existing = document.getElementById('transcript').value;
+
+  recognition.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t + ' ';
+      else interim += t;
+    }
+    document.getElementById('transcript').value = existing + final + interim;
+  };
+
+  recognition.onerror = (e) => {
+    setStatus('err', 'Mic error: ' + e.error);
+    stopRecording();
+  };
+
+  recognition.start();
+  isRecording = true;
+  document.getElementById('mic-outer').classList.add('recording');
+  document.getElementById('mic-label').textContent = 'Recording… tap to stop';
+  setStatus('busy', 'Listening…');
+}
+
+function stopRecording() {
+  if (recognition) { recognition.stop(); recognition = null; }
+  isRecording = false;
+  document.getElementById('mic-outer').classList.remove('recording');
+  document.getElementById('mic-label').textContent = 'Tap to dictate findings';
+  setStatus('ready', 'Review transcript, then click Map Findings.');
+}
+
+// ══════════════════════════════════════════════
+//  AI PROCESSING
+// ══════════════════════════════════════════════
+async function processFindings() {
+  const transcript = document.getElementById('transcript').value.trim();
+  if (!transcript) {
+    setStatus('err', 'No findings dictated. Please speak or type first.');
+    return;
+  }
+  if (!selectedModality) {
+    setStatus('err', 'Please select a modality first.');
+    return;
+  }
+
+  const apiKey = (localStorage.getItem('radscribe_apikey') || '').trim();
+  if (!apiKey) {
+    setStatus('err', 'No API key set. Go to Settings tab and add your Anthropic key.');
+    return;
+  }
+
+  // Determine template sections
+  const templateKey = getTemplateKeyForContext();
+  const templateData = TEMPLATES[templateKey] || buildDynamicTemplate();
+  const sections = templateData.sections;
+
+  const btn = document.getElementById('process-btn');
+  btn.classList.add('processing');
+  btn.innerHTML = '<div class="spinner"></div> Analysing findings…';
+  setStatus('busy', 'AI mapping findings to report structure…');
+  document.getElementById('result-zone').style.display = 'none';
+
+  const systemPrompt = `You are an expert radiologist AI assistant working for Expert-i Teleradiology.
+Your job is to take a raw dictated radiology report and:
+1. Map every finding to the correct structured section of the report template
+2. Identify and resolve any contradictions or inconsistencies in the dictated findings
+3. Generate a concise, clinically precise Impression section that aggregates key findings
+4. Flag any findings that were contradictory and explain the resolution
+
+Modality: ${selectedModality}
+Regions of focus: ${selectedOrgans.length ? selectedOrgans.join(', ') : 'as per findings'}
+Template sections: ${sections.join(', ')}
+
+Rules:
+- If a finding contradicts itself (e.g., "no mass" followed by "4cm mass"), always keep the positive finding and flag the contradiction
+- Impression must start with exam type, then list actionable findings in order of clinical significance
+- If a section has no relevant finding, write "Unremarkable" or "Not visualized"
+- Do NOT invent findings not present in the dictation
+- Output ONLY valid JSON, no markdown fences, no preamble
+
+Output JSON format:
+{
+  "fields": {
+    "SectionName": "text of finding",
+    ...
+  },
+  "impression": "Concise impression paragraph here.",
+  "contradictions": ["Description of contradiction 1 and how it was resolved", ...]
+}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Raw dictation:\n\n${transcript}` }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || 'API error ' + response.status);
+    }
+
+    const data = await response.json();
+    const raw  = data.content.find(b => b.type === 'text')?.text || '';
+    
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    } catch(e) {
+      throw new Error('AI returned malformed JSON. Try again.');
+    }
+
+    lastResult = { fields: parsed.fields || {}, impression: parsed.impression || '', contradictions: parsed.contradictions || [], sections };
+    renderResult(lastResult);
+    setStatus('ok', `Mapped ${Object.keys(parsed.fields).length} fields. Review & insert.`);
+
+  } catch(err) {
+    setStatus('err', 'Error: ' + err.message);
+  } finally {
+    btn.classList.remove('processing');
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg> Map Findings to Report';
+  }
+}
+
+function getTemplateKeyForContext() {
+  const mod = selectedModality;
+  const organ = selectedOrgans[0] || '';
+  if (mod === 'CT') {
+    if (organ.includes('Abdomen') || organ.includes('Pelvis')) return 'ct_abdomen';
+    if (organ.includes('Chest')) return 'ct_chest';
+    if (organ.includes('Brain')) return 'ct_brain';
+    return 'ct_abdomen';
+  }
+  if (mod === 'MRI') {
+    if (organ.includes('Brain')) return 'mri_brain';
+    if (organ.includes('Spine')) return 'mri_spine';
+    if (organ.includes('MSK') || organ.includes('Extremities')) return 'mri_msk';
+    return 'mri_brain';
+  }
+  if (mod === 'US') return 'us_abdomen';
+  if (mod === 'XR') return 'xr_chest';
+  return 'ct_abdomen';
+}
+
+function buildDynamicTemplate() {
+  return { sections: ['Clinical History','Technique','Findings','Impression'] };
+}
+
+// ══════════════════════════════════════════════
+//  RENDER RESULT
+// ══════════════════════════════════════════════
+function renderResult(result) {
+  // Contradictions
+  const cz = document.getElementById('conflicts-zone');
+  const cl = document.getElementById('conflicts-list');
+  if (result.contradictions && result.contradictions.length) {
+    cl.innerHTML = result.contradictions.map(c => `<div class="conflict-item">${escHtml(c)}</div>`).join('');
+    cz.style.display = 'block';
+  } else {
+    cz.style.display = 'none';
+  }
+
+  // Fields
+  const body = document.getElementById('fields-body');
+  body.innerHTML = '';
+  let count = 0;
+  
+  // Show sections in template order, impression last
+  const allSections = result.sections || Object.keys(result.fields);
+  allSections.forEach(section => {
+    if (section === 'Impression') return; // handle separately
+    const val = result.fields[section] || '';
+    if (!val) return;
+    count++;
+    const row = document.createElement('div');
+    row.className = 'field-row';
+    row.innerHTML = `<div class="field-key">${escHtml(section)}</div><div class="field-val">${escHtml(val)}</div>`;
+    body.appendChild(row);
+  });
+
+  // Impression always last
+  if (result.impression) {
+    count++;
+    const row = document.createElement('div');
+    row.className = 'field-row';
+    row.innerHTML = `<div class="field-key" style="color:var(--ok)">Impression</div><div class="field-val impression">${escHtml(result.impression)}</div>`;
+    body.appendChild(row);
+  }
+
+  document.getElementById('field-count').textContent = count + ' fields';
+  document.getElementById('result-zone').style.display = 'flex';
+}
+
+// ══════════════════════════════════════════════
+//  INSERT INTO WORD
+// ══════════════════════════════════════════════
+async function insertIntoDocument() {
+  if (!lastResult) return;
+
+  try {
+    await Word.run(async (context) => {
+      const body = context.document.body;
+      
+      // Clear existing content or append — here we replace
+      body.clear();
+
+      const radName   = localStorage.getItem('radscribe_radName')    || '';
+      const inst      = localStorage.getItem('radscribe_institution') || 'Expert-i Teleradiology';
+      const dateStr   = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+
+      // Header
+      const titlePara = body.insertParagraph(`${selectedModality} REPORT — ${selectedOrgans.join(' / ') || 'RADIOLOGY'}`, Word.InsertLocation.start);
+      titlePara.styleBuiltIn   = Word.Style.heading1;
+      titlePara.alignment      = Word.Alignment.left;
+
+      body.insertParagraph(`${inst}  |  ${radName}  |  ${dateStr}`, Word.InsertLocation.end);
+      body.insertParagraph('', Word.InsertLocation.end);
+
+      // Fields in order
+      const sections = lastResult.sections || Object.keys(lastResult.fields);
+      sections.forEach(section => {
+        if (section === 'Impression') return;
+        const val = lastResult.fields[section];
+        if (!val) return;
+        
+        const heading = body.insertParagraph(section.toUpperCase(), Word.InsertLocation.end);
+        heading.styleBuiltIn = Word.Style.heading2;
+
+        const content = body.insertParagraph(val, Word.InsertLocation.end);
+        content.styleBuiltIn = Word.Style.normal;
+        body.insertParagraph('', Word.InsertLocation.end);
+      });
+
+      // Impression — bold, prominent
+      const impHeading = body.insertParagraph('IMPRESSION', Word.InsertLocation.end);
+      impHeading.styleBuiltIn = Word.Style.heading2;
+
+      const impContent = body.insertParagraph(lastResult.impression, Word.InsertLocation.end);
+      impContent.styleBuiltIn = Word.Style.normal;
+      impContent.font.bold = true;
+
+      body.insertParagraph('', Word.InsertLocation.end);
+
+      // Signature line
+      if (radName) {
+        const sig = body.insertParagraph(`Reported by: ${radName}`, Word.InsertLocation.end);
+        sig.font.italic = true;
+        sig.font.color = '#555555';
+      }
+
+      await context.sync();
+      setStatus('ok', 'Report inserted into Word document.');
+    });
+
+  } catch(err) {
+    setStatus('err', 'Word error: ' + err.message);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  TEMPLATES PANEL
+// ══════════════════════════════════════════════
+function loadTemplate(key) {
+  if (!key || !TEMPLATES[key]) { document.getElementById('template-editor').value = ''; return; }
+  document.getElementById('template-editor').value = JSON.stringify(TEMPLATES[key], null, 2);
+}
+
+function saveCustomTemplate() {
+  try {
+    const raw = document.getElementById('template-editor').value;
+    const parsed = JSON.parse(raw);
+    TEMPLATES['custom'] = parsed;
+    setStatus('ok', 'Custom template saved.');
+  } catch(e) {
+    setStatus('err', 'Invalid JSON in template editor.');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+function setStatus(type, msg) {
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  dot.className  = 'status-dot ' + (type === 'ok' ? 'ok' : type === 'err' ? 'err' : type === 'busy' ? 'busy' : '');
+  text.textContent = msg;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
