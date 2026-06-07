@@ -138,9 +138,9 @@ body{ background:var(--bg); color:var(--text); font-family:var(--ui); font-size:
   font-family:var(--serif); font-size:15px; line-height:1.55; }
 .report-doc .rtable{ width:100%; border-collapse:collapse; margin-bottom:18px; }
 .report-doc .rtable td{ padding:3px 8px; font-size:14px; vertical-align:top; }
-.report-doc p{ margin:2px 0; }
-.report-doc .rp.section{ font-weight:700; text-decoration:underline; margin-top:14px; }
-.report-doc .rp.sub{ font-weight:700; margin-top:9px; }
+.report-doc p{ margin:0; line-height:1.3; }
+.report-doc .rp.section{ font-weight:700; text-decoration:underline; margin-top:10px; }
+.report-doc .rp.sub{ font-weight:700; margin-top:6px; }
 .report-doc .rp.item .lbl{ text-decoration:underline; }
 .report-doc .rp.changed .val{ background:#fff6d6; }
 .report-doc .rp.impression{ font-weight:700; }
@@ -485,7 +485,7 @@ async function fillTemplate(){
 Your job:
 1. For each dictated finding, find the single best-matching line and rewrite it to express the finding, REPLACING the normal default (e.g. replace "Intact." or "No hyaline cartilage disease.").
 2. For lines formatted "Label: value", keep the label text before the colon EXACTLY, change only the value after it.
-3. Update the IMPRESSION line(s): remove "Unremarkable study" / normal wording and instead summarize the positive findings. If more than one finding, number them (1., 2., ...).
+3. Update the IMPRESSION line(s): remove "Unremarkable study" / normal wording and instead list the positive findings, each finding on its OWN line separated by a newline character (\\n), with NO numbering and NO bullets.
 4. Do NOT touch lines that have no dictated finding — do not include them in your output.
 5. Never invent findings not dictated. Preserve correct anatomical/radiological language. Output language: ${lang}.
 
@@ -555,13 +555,13 @@ function renderReport(blocks, notes, unmatched, changed){
     if(b.kind==='item'){
       const ch=changed.has(i)?' changed':''; const imp=b.impression?' impression':'';
       const lblStyle=(b.labelBold?'font-weight:700;':'')+(b.labelUnder?'text-decoration:underline;':'');
-      html+='<p class="rp item'+ch+imp+'"><span class="lbl" style="'+lblStyle+'">'+esc(b.label)+'</span> <span class="val">'+esc(b.value)+'</span></p>'; return;
+      html+='<p class="rp item'+ch+imp+'"><span class="lbl" style="'+lblStyle+'">'+esc(b.label)+'</span> <span class="val">'+escbr(b.value)+'</span></p>'; return;
     }
     const ch=changed.has(i)?' changed':''; const imp=b.impression?' impression':'';
     const bold=(b.bold||b.impression)?'font-weight:700;':'';
-    html+='<p class="rp plain'+ch+imp+'" style="'+bold+'"><span class="val">'+esc(b.text)+'</span></p>';
+    html+='<p class="rp plain'+ch+imp+'" style="'+bold+'"><span class="val">'+escbr(b.text)+'</span></p>';
   });
-  if(radName) html+='<div class="sig">Reported by: '+esc(radName)+'</div>';
+  if(radName) html+='<div class="sig">'+esc(radName)+'</div>';
   html+='</div>';
   document.getElementById('report-area').innerHTML=html;
 }
@@ -588,6 +588,7 @@ function setStatus(t,m){ const d=document.getElementById('status-dot'),x=documen
 function setTplStatus(t,m){ const d=document.getElementById('tpl-status-dot'),x=document.getElementById('tpl-status-text');
   if(d)d.className='status-dot '+(t||''); if(x)x.textContent=m; }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escbr(s){ return esc(s).replace(/\n/g,'<br>'); }
 </script>
 </body>
 </html>
