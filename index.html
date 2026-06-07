@@ -531,7 +531,7 @@ Output ONLY valid JSON, no markdown fences:
 /* render */
 function renderReport(blocks, notes, unmatched, changed){
   changed=changed||new Set();
-  document.getElementById('empty-state').style.display='none';
+  const es=document.getElementById('empty-state'); if(es) es.style.display='none';
   const radName=localStorage.getItem('rs_radName')||'';
   let html='';
   if(notes&&notes.length){
