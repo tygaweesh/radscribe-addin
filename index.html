@@ -105,6 +105,25 @@ body{ background:var(--bg); color:var(--text); font-family:var(--ui); font-size:
   padding:5px 10px; border-radius:6px; cursor:pointer; }
 .mini-btn:hover{ border-color:var(--warn); }
 
+.kb-textarea{ width:100%; min-height:120px; background:var(--panel); border:1px solid var(--border); color:var(--text);
+  font-family:var(--ui); font-size:12.5px; line-height:1.55; padding:11px; border-radius:8px; resize:vertical; outline:none; }
+.kb-textarea:focus{ border-color:var(--accent); }
+.corr-input-row{ display:flex; gap:6px; }
+.corr-input-row .input-field{ flex:1; }
+.corr-add{ flex-shrink:0; padding:0 14px; background:var(--accent); color:#fff; border:none; border-radius:8px;
+  font-weight:600; font-size:13px; cursor:pointer; }
+.corr-add:hover{ background:var(--accent2); }
+.corr-row{ display:flex; align-items:center; gap:8px; padding:8px 11px; background:var(--panel2);
+  border:1px solid var(--border); border-radius:7px; font-size:12.5px; }
+.corr-row .arrow{ color:var(--muted); }
+.corr-row .wrong{ color:var(--warn); text-decoration:line-through; }
+.corr-row .right{ color:var(--ok); font-weight:600; }
+.corr-row .x{ margin-left:auto; cursor:pointer; color:var(--muted); border:none; background:none; font-size:15px; }
+.corr-row .x:hover{ color:var(--warn); }
+.kb-toggle{ background:transparent; border:1px solid var(--border); color:var(--accent); font-size:11px;
+  padding:5px 10px; border-radius:6px; cursor:pointer; }
+.kb-toggle:hover{ border-color:var(--accent); }
+
 /* ── RIGHT ── */
 .right{ display:flex; flex-direction:column; min-height:100vh; }
 .right-header{ padding:20px 28px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:14px;
@@ -253,6 +272,22 @@ body{ background:var(--bg); color:var(--text); font-family:var(--ui); font-size:
             <option value="Arabic">Arabic</option>
           </select>
         </div>
+        <div>
+          <div class="section-label">Global House Style & Knowledge</div>
+          <textarea class="kb-textarea" id="global-kb" oninput="save('globalKnowledge',this.value)"
+            placeholder="Applies to every template. Add your reporting conventions, preferred phrasing, grading scales, and style rules. Example:&#10;&#10;- Use 'There is' phrasing, not 'shows'.&#10;- Always state laterality.&#10;- Grade ACL tears as Grade I/II/III sprain.&#10;- Meniscal tears: state horn (anterior/body/posterior) and pattern (horizontal/radial/complex)."></textarea>
+          <div class="hint">Injected into every report. This is how you teach RadScribe your style — it does not learn on its own, so anything you put here is applied consistently.</div>
+        </div>
+        <div>
+          <div class="section-label">Correction Dictionary</div>
+          <div class="corr-input-row">
+            <input type="text" class="input-field" id="corr-wrong" placeholder="Misheard (e.g. super spinatus)"/>
+            <input type="text" class="input-field" id="corr-right" placeholder="Correct (e.g. supraspinatus)"/>
+            <button class="corr-add" onclick="addCorrection()">Add</button>
+          </div>
+          <div id="corr-list" style="display:flex;flex-direction:column;gap:6px;margin-top:9px;"></div>
+          <div class="hint">When the speech engine mis-hears a term, add it here. Every entry is applied as an automatic correction on future reports.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -296,12 +331,37 @@ function persistTemplates(){ try{localStorage.setItem('rs_templates_v2',JSON.str
 window.onload=()=>{
   ['apikey','radName'].forEach(k=>{ const v=localStorage.getItem('rs_'+k);
     if(v){ const el=document.getElementById(k==='apikey'?'api-key':'rad-name'); if(el) el.value=v; } });
+  const gk=localStorage.getItem('rs_globalKnowledge'); if(gk) document.getElementById('global-kb').value=gk;
+  loadCorrections(); renderCorrections();
   loadTemplates(); refreshTemplateLists();
   const uz=document.getElementById('upload-zone');
   ['dragover','dragenter'].forEach(e=>uz.addEventListener(e,ev=>{ev.preventDefault();uz.classList.add('dragover');}));
   ['dragleave','drop'].forEach(e=>uz.addEventListener(e,ev=>{ev.preventDefault();uz.classList.remove('dragover');}));
   uz.addEventListener('drop',ev=>{ if(ev.dataTransfer.files[0]) handleFile(ev.dataTransfer.files[0]); });
 };
+
+let CORRECTIONS=[];
+function loadCorrections(){ try{CORRECTIONS=JSON.parse(localStorage.getItem('rs_corrections')||'[]');}catch(e){CORRECTIONS=[];} }
+function persistCorrections(){ try{localStorage.setItem('rs_corrections',JSON.stringify(CORRECTIONS));}catch(e){} }
+function addCorrection(){
+  const w=document.getElementById('corr-wrong').value.trim();
+  const r=document.getElementById('corr-right').value.trim();
+  if(!w||!r) return;
+  CORRECTIONS.push({w,r}); persistCorrections(); renderCorrections();
+  document.getElementById('corr-wrong').value=''; document.getElementById('corr-right').value='';
+  document.getElementById('corr-wrong').focus();
+}
+function deleteCorrection(i){ CORRECTIONS.splice(i,1); persistCorrections(); renderCorrections(); }
+function renderCorrections(){
+  const el=document.getElementById('corr-list');
+  if(!CORRECTIONS.length){ el.innerHTML='<span class="hint" style="margin-top:0">No corrections yet.</span>'; return; }
+  el.innerHTML='';
+  CORRECTIONS.forEach((c,i)=>{ const row=document.createElement('div'); row.className='corr-row';
+    row.innerHTML='<span class="wrong">'+esc(c.w)+'</span><span class="arrow">→</span><span class="right">'+esc(c.r)+'</span>';
+    const x=document.createElement('button'); x.className='x'; x.textContent='×'; x.onclick=()=>deleteCorrection(i);
+    row.appendChild(x); el.appendChild(row);
+  });
+}
 
 function switchTab(tab,btn){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -405,10 +465,21 @@ function refreshTemplateLists(){
   list.innerHTML = ids.length? '' : '<span class="hint">No templates saved yet.</span>';
   ids.forEach(id=>{ const t=TEMPLATES[id];
     const ed=t.blocks.filter(b=>b.type==='p'&&b.editable).length;
+    const wrap=document.createElement('div');
     const row=document.createElement('div'); row.className='tpl-row';
     row.innerHTML='<div style="flex:1"><div class="nm">'+esc(t.name)+'</div><div class="ct">'+ed+' editable lines</div></div>';
-    const btn=document.createElement('button'); btn.className='mini-btn'; btn.textContent='Delete';
-    btn.onclick=()=>deleteTemplate(id); row.appendChild(btn); list.appendChild(row);
+    const kbBtn=document.createElement('button'); kbBtn.className='kb-toggle'; kbBtn.textContent='Knowledge';
+    const delBtn=document.createElement('button'); delBtn.className='mini-btn'; delBtn.textContent='Delete';
+    delBtn.onclick=()=>deleteTemplate(id);
+    row.appendChild(kbBtn); row.appendChild(delBtn);
+    const kbBox=document.createElement('div'); kbBox.style.display='none'; kbBox.style.marginTop='7px';
+    const ta=document.createElement('textarea'); ta.className='kb-textarea'; ta.style.minHeight='100px';
+    ta.value=t.knowledge||'';
+    ta.placeholder='Knowledge specific to this template (grading scales, anatomy notes, example dictation→line). Saved automatically.';
+    ta.oninput=()=>{ TEMPLATES[id].knowledge=ta.value; persistTemplates(); };
+    kbBtn.onclick=()=>{ kbBox.style.display = kbBox.style.display==='none'?'block':'none'; };
+    kbBox.appendChild(ta);
+    wrap.appendChild(row); wrap.appendChild(kbBox); list.appendChild(wrap);
   });
   const sel=document.getElementById('active-tpl'); const prev=activeTemplateId;
   sel.innerHTML='<option value="">— No template loaded —</option>';
@@ -480,6 +551,15 @@ async function fillTemplate(){
   const lang=localStorage.getItem('rs_language')||'English';
   const listText=editable.map(e=>`[${e.index}]${e.isImpression?' (IMPRESSION)':''} (under "${e.section}") -> ${e.current}`).join('\n');
 
+  // assemble knowledge layer
+  const globalKB=(localStorage.getItem('rs_globalKnowledge')||'').trim();
+  const tplKB=(TEMPLATES[activeTemplateId].knowledge||'').trim();
+  const corrText=CORRECTIONS.length?CORRECTIONS.map(c=>`"${c.w}" -> "${c.r}"`).join('; '):'';
+  let kb='';
+  if(corrText) kb+=`\n\nTRANSCRIPTION CORRECTIONS (apply these term fixes to the dictation before mapping; the speech engine commonly mis-hears them):\n${corrText}`;
+  if(globalKB) kb+=`\n\nHOUSE STYLE & GENERAL KNOWLEDGE (follow for phrasing and conventions):\n${globalKB}`;
+  if(tplKB) kb+=`\n\nTEMPLATE-SPECIFIC KNOWLEDGE (for this exam type):\n${tplKB}`;
+
   const sys=`You are a radiology transcriptionist. You are given a report template as a numbered list of editable lines, each currently showing the NORMAL/DEFAULT text. The radiologist dictates only the POSITIVE (abnormal) findings.
 
 Your job:
@@ -487,7 +567,7 @@ Your job:
 2. For lines formatted "Label: value", keep the label text before the colon EXACTLY, change only the value after it.
 3. Update the IMPRESSION line(s): remove "Unremarkable study" / normal wording and instead list the positive findings, each finding on its OWN line separated by a newline character (\\n), with NO numbering and NO bullets.
 4. Do NOT touch lines that have no dictated finding — do not include them in your output.
-5. Never invent findings not dictated. Preserve correct anatomical/radiological language. Output language: ${lang}.
+5. Never invent findings not dictated. Preserve correct anatomical/radiological language. Output language: ${lang}.${kb}
 
 Output ONLY valid JSON, no markdown fences:
 {"edits":[{"index":<number>,"newText":"<full new line text incl. label>"}],"notes":["short description of each change"],"unmatched":["any dictated finding you could not place"]}`;
