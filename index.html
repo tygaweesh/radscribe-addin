@@ -458,7 +458,7 @@ JSON format:
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1500, system:sys,
+      body:JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1500, system:sys,
         messages:[{role:'user',content:'Raw dictation:\n\n'+transcript}] })
     });
     if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||'API error '+res.status); }
@@ -540,7 +540,7 @@ Output ONLY valid JSON, no markdown fences, no preamble:
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:800, system:sys,
+      body:JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:800, system:sys,
         messages:[{role:'user',content:'Report:\n\n'+text}] })
     });
     if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||'API error '+res.status); }
